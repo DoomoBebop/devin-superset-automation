@@ -7,6 +7,7 @@ services:
       - "8080:8080"
     environment:
       - DEVIN_API_KEY=${DEVIN_API_KEY}
+      - DEVIN_ORG_ID=${DEVIN_ORG_ID}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_REPO=${GITHUB_REPO:-DoomoBebop/superset-interview}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET:-}
@@ -16,12 +17,12 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
-  # Optional: run batch mode instead of webhook server
   batch:
     build: .
-    command: python src/orchestrator.py --label security
+    command: python src/orchestrator.py
     environment:
       - DEVIN_API_KEY=${DEVIN_API_KEY}
+      - DEVIN_ORG_ID=${DEVIN_ORG_ID}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_REPO=${GITHUB_REPO:-DoomoBebop/superset-interview}
       - METRICS_PATH=/app/data/devin_metrics.json
