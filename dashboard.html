@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Devin Automation · Superset Remediation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#0d1117}
+::-webkit-scrollbar-thumb{background:#21262d;border-radius:4px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes slidedown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Layout */
+#header{border-bottom:1px solid #21262d;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;background:#010409;position:sticky;top:0;z-index:10}
+#logo{display:flex;align-items:center;gap:12px}
+#logo-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+#logo-title{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.3px}
+#logo-sub{font-size:10px;color:#484f58;margin-top:2px}
+#stats{display:flex;gap:20px;align-items:center}
+.stat{text-align:center}
+.stat-num{font-size:22px;font-weight:700;line-height:1}
+.stat-label{font-size:9px;color:#30363d;letter-spacing:1px;margin-top:2px}
+
+/* Config bar */
+#config-bar{background:#161b22;border-bottom:1px solid #21262d;padding:10px 24px;display:flex;align-items:center;gap:12px;font-size:11px}
+#config-bar label{color:#8b949e}
+#config-bar input{background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e6edf3;font-family:monospace;font-size:11px;padding:4px 8px;width:280px}
+#config-bar input:focus{outline:none;border-color:#8b5cf6}
+#backend-status{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px}
+#backend-dot{width:8px;height:8px;border-radius:50%;background:#484f58;flex-shrink:0}
+
+/* Tabs */
+#tabs{display:flex;border-bottom:1px solid #21262d;padding:0 24px;background:#010409}
+.tab-btn{padding:10px 18px;border:none;background:none;cursor:pointer;color:#484f58;border-bottom:2px solid transparent;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;transition:all .15s;font-family:'JetBrains Mono',monospace}
+.tab-btn.active{color:#e6edf3;border-bottom-color:#8b5cf6}
+
+/* Main */
+#main{padding:24px;max-width:1140px;margin:0 auto}
+.panel{display:none;animation:fadein .3s}
+.panel.active{display:block}
+
+/* Issues panel */
+#issues-grid{display:grid;grid-template-columns:340px 1fr;gap:20px}
+.section-label{font-size:10px;color:#484f58;letter-spacing:1.5px;margin-bottom:10px}
+
+/* Issue card */
+.issue-card{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:12px 14px;cursor:pointer;transition:all .2s;margin-bottom:8px}
+.issue-card:hover{border-color:#30363d}
+.issue-card.selected{background:#161b22}
+.issue-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.issue-num{font-family:monospace;color:#484f58;font-size:11px}
+.issue-pills{display:flex;gap:4px}
+.issue-title{font-size:12px;color:#e6edf3;line-height:1.4;margin-bottom:8px}
+
+/* Pills */
+.pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.8px}
+
+/* Status dot */
+.status-dot-wrap{display:flex;align-items:center;gap:6px}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-label{font-size:11px;font-family:monospace;font-weight:700}
+
+/* Detail panel */
+#detail{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:16px;margin-bottom:16px}
+.detail-title{font-size:14px;font-weight:700;margin-bottom:8px}
+.detail-desc{color:#8b949e;font-size:12px;line-height:1.65;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.detail-field-label{font-size:10px;color:#484f58;letter-spacing:1px;margin-bottom:4px}
+.detail-footer{padding-top:12px;border-top:1px solid #21262d;display:flex;justify-content:space-between;align-items:center}
+code.file{font-size:11px;color:#58a6ff;background:#1f2937;padding:3px 8px;border-radius:4px}
+code.session{font-size:10px;color:#8b5cf6}
+
+/* Diff */
+#diff-section{margin-bottom:16px}
+.diff-header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.diff-toggle{font-size:10px;color:#8b949e;background:#21262d;border:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-family:monospace}
+.diff-placeholder{padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:6px;font-size:12px;color:#484f58;cursor:pointer}
+.diff-container{animation:slidedown .25s}
+.diff-file-header{background:#161b22;padding:8px 12px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between}
+.diff-file-name{color:#58a6ff;font-size:11px}
+.diff-stats{font-size:10px;color:#8b949e}
+.diff-hunk-header{background:#1c2128;color:#8b949e;padding:4px 12px;font-size:11px;border-bottom:1px solid #21262d}
+.diff-line{display:flex;padding:1px 0}
+.diff-sign{width:24px;text-align:center;user-select:none;flex-shrink:0;opacity:.7}
+
+.diff-success-msg{margin-top:10px;padding:10px 14px;background:#0d2818;border:1px solid #238636;border-radius:6px;font-size:12px;color:#3fb950}
+
+/* Prompt */
+#prompt-box{background:#010409;border:1px solid #21262d;border-radius:6px;padding:12px;font-size:11px;color:#8b949e;line-height:1.65;white-space:pre-wrap;margin-top:16px}
+
+/* Buttons */
+.btn-primary{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;background:linear-gradient(135deg,#8b5cf6,#3b82f6);color:#fff;font-size:12px;font-weight:700;font-family:monospace;letter-spacing:.5px;transition:all .2s}
+.btn-secondary{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;background:#21262d;color:#fff;font-size:12px;font-weight:700;font-family:monospace;transition:all .2s}
+.btn-danger{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;background:#2d1515;color:#f85149;border:1px solid #f8514944;font-size:12px;font-weight:700;font-family:monospace}
+
+/* Code panel */
+#code-grid{display:grid;grid-template-columns:190px 1fr;gap:20px}
+.code-nav-btn{display:block;width:100%;text-align:left;padding:9px 12px;border:none;border-radius:6px;cursor:pointer;background:transparent;color:#484f58;border-left:2px solid transparent;font-size:12px;font-weight:400;margin-bottom:4px;transition:all .15s;font-family:monospace}
+.code-nav-btn.active{background:#161b22;color:#e6edf3;border-left-color:#8b5cf6;font-weight:700}
+.code-desc{background:#161b22;border:1px solid #21262d;border-radius:6px;padding:12px;margin-bottom:12px;font-size:12px;color:#8b949e;line-height:1.65}
+pre.code-block{margin:0;padding:16px;border-radius:6px;background:#010409;border:1px solid #21262d;font-size:12px;line-height:1.75;overflow-x:auto;font-family:'JetBrains Mono','Fira Code',monospace;color:#e6edf3}
+.code-line{display:flex}
+.code-linenum{color:#30363d;min-width:28px;user-select:none;font-size:10px;padding-top:1px;flex-shrink:0}
+
+/* Arch panel */
+#arch-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+.arch-card{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:16px}
+.arch-card-icon{font-size:22px;margin-bottom:8px}
+.arch-card-title{font-size:13px;font-weight:700;margin-bottom:6px}
+.arch-card-desc{font-size:12px;color:#8b949e;line-height:1.55}
+#why-devin{background:#0d2818;border:1px solid #238636;border-radius:8px;padding:16px}
+#why-devin-title{font-size:12px;font-weight:700;color:#3fb950;margin-bottom:8px}
+#why-devin-text{font-size:12px;color:#8b949e;line-height:1.8}
+
+/* Log panel */
+#log-box{background:#010409;border:1px solid #21262d;border-radius:6px;padding:12px;font-size:11px;color:#8b949e;line-height:1.8;height:300px;overflow-y:auto;font-family:monospace}
+.log-line{margin-bottom:2px}
+.log-ts{color:#30363d}
+.log-info{color:#58a6ff}
+.log-success{color:#3fb950}
+.log-error{color:#f85149}
+.log-warn{color:#d29922}
+
+/* Spinner */
+.spinner{width:14px;height:14px;border:2px solid #21262d;border-top-color:#8b5cf6;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="logo">
+    <div id="logo-icon">⚡</div>
+    <div>
+      <div id="logo-title">Devin Automation · Superset Remediation</div>
+      <div id="logo-sub">DoomoBebop/superset-interview · Event-driven · Devin API v3</div>
+    </div>
+  </div>
+  <div id="stats">
+    <div class="stat"><div class="stat-num" id="stat-total" style="color:#8b949e">5</div><div class="stat-label">TOTAL</div></div>
+    <div class="stat"><div class="stat-num" id="stat-success" style="color:#3fb950">0</div><div class="stat-label">SUCCESS</div></div>
+    <div class="stat"><div class="stat-num" id="stat-running" style="color:#d29922">0</div><div class="stat-label">RUNNING</div></div>
+    <div class="stat"><div class="stat-num" id="stat-failed" style="color:#f85149">0</div><div class="stat-label">FAILED</div></div>
+    <button class="btn-primary" id="run-btn" onclick="triggerAll()">▶ RUN ALL ISSUES</button>
+  </div>
+</div>
+
+<!-- CONFIG BAR -->
+<div id="config-bar">
+  <label>Backend URL:</label>
+  <input type="text" id="backend-url" value="http://localhost:8080" oninput="checkBackend()">
+  <label style="margin-left:12px">GitHub Token:</label>
+  <input type="password" id="gh-token-input" placeholder="your_token_here" style="width:200px" oninput="saveToken(this.value)">
+  <div id="backend-status">
+    <div id="backend-dot"></div>
+    <span id="backend-label" style="color:#484f58">checking…</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <button class="tab-btn active" onclick="switchTab('issues',this)">Issues</button>
+  <button class="tab-btn" onclick="switchTab('code',this)">Code</button>
+  <button class="tab-btn" onclick="switchTab('architecture',this)">Architecture</button>
+  <button class="tab-btn" onclick="switchTab('logs',this)">Live Logs</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- ISSUES PANEL -->
+  <div class="panel active" id="panel-issues">
+    <div id="issues-grid">
+      <!-- Left: issue list -->
+      <div>
+        <div class="section-label">ISSUES · 5 SELECTED FOR REMEDIATION</div>
+        <div id="issue-list"></div>
+      </div>
+      <!-- Right: detail -->
+      <div id="right-panel">
+        <div class="section-label" id="detail-label">ISSUE DETAIL</div>
+        <div id="detail"></div>
+        <div id="diff-section"></div>
+        <pre id="prompt-box"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE PANEL -->
+  <div class="panel" id="panel-code">
+    <div id="code-grid">
+      <div>
+        <div class="section-label">SECTIONS</div>
+        <div id="code-nav"></div>
+      </div>
+      <div id="code-content"></div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE PANEL -->
+  <div class="panel" id="panel-architecture">
+    <div class="section-label">SYSTEM ARCHITECTURE · EVENT-DRIVEN FLOW</div>
+    <div style="background:#161b22;border:1px solid #21262d;border-radius:8px;padding:24px;margin-bottom:20px">
+      <svg id="arch-svg" width="100%" viewBox="0 0 580 260" style="font-family:monospace"></svg>
+    </div>
+    <div id="arch-cards"></div>
+    <div id="why-devin">
+      <div id="why-devin-title">💡 WHY DEVIN HERE?</div>
+      <div id="why-devin-text">
+        Traditional automation (Dependabot, scripts) handles <em style="color:#e6edf3">known, bounded cases</em>.
+        Devin handles <em style="color:#e6edf3">ambiguity</em> — it reads context, understands intent,
+        and produces working code + PRs without a predefined template.
+        This system provides the event layer, session lifecycle management,
+        and observability that makes Devin <em style="color:#e6edf3">production-viable for an engineering team at scale</em>.
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGS PANEL -->
+  <div class="panel" id="panel-logs">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-label" style="margin:0">LIVE BACKEND LOGS</div>
+      <button class="btn-secondary" onclick="clearLogs()" style="font-size:10px;padding:4px 10px">clear</button>
+    </div>
+    <div id="log-box"></div>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+
+const GITHUB_TOKEN = localStorage.getItem("gh_token") || "";
+const GITHUB_REPO  = "DoomoBebop/superset-interview";
+
+const ISSUES_META = [
+  { number:1, title:"Security: Upgrade cryptography package (CVE-2023-49083)", type:"security", severity:"HIGH",   file:"requirements/base.txt",            desc:"NULL pointer dereference in PKCS12 parsing. Affects all Superset deployments using certificates." },
+  { number:2, title:"Security: Upgrade Pillow to >=10.3.0 (CVE-2024-28219)",  type:"security", severity:"MEDIUM", file:"requirements/base.txt",            desc:"Buffer overflow in _imagingcms. Exploitable via crafted image inputs to chart thumbnail endpoints." },
+  { number:3, title:"Code quality: Remove unused imports in views/core.py",    type:"quality",  severity:"LOW",    file:"superset/views/core.py",            desc:"F401 violations: flask.json and typing.Text imported but unused. Reduces static analysis noise." },
+  { number:4, title:"Dependency: Fix Werkzeug 3.x compatibility",              type:"dependency",severity:"MEDIUM",file:"requirements/base.txt",            desc:"Werkzeug 3.x introduced breaking changes in werkzeug.serving and werkzeug.test used by the test suite." },
+  { number:5, title:"Code quality: Add type hints to db_engine_specs/base.py", type:"quality",  severity:"LOW",    file:"superset/db_engine_specs/base.py",  desc:"get_table_names, get_schema_names, get_view_names, get_columns lack mypy-compatible type annotations." },
+];
+
+const TYPE_COLOR = {
+  security:   { border:"#f85149", text:"#f85149" },
+  quality:    { border:"#3fb950", text:"#3fb950" },
+  dependency: { border:"#58a6ff", text:"#58a6ff" },
+};
+const SEV_COLOR = { HIGH:"#f85149", MEDIUM:"#d29922", LOW:"#3fb950" };
+const ST_COLOR  = { pending:"#484f58", running:"#d29922", success:"#3fb950", failed:"#f85149" };
+const ST_LABEL  = { pending:"PENDING", running:"RUNNING…", success:"RESOLVED", failed:"FAILED" };
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+
+let state = {
+  tasks: {},          // { issueNumber: { status, session_id, session_url, pr_url, ... } }
+  selectedIssue: 1,
+  selectedCode: 0,
+  showDiff: {},       // { issueNumber: bool }
+  realDiffs: {},      // { issueNumber: diffData from GitHub }
+  pollInterval: null,
+  backendUrl: "http://localhost:8080",
+};
+
+// ── LOGGING ──────────────────────────────────────────────────────────────────
+
+function log(msg, level="info") {
+  const box = document.getElementById("log-box");
+  const ts  = new Date().toTimeString().slice(0,8);
+  const div = document.createElement("div");
+  div.className = "log-line";
+  div.innerHTML = `<span class="log-ts">[${ts}]</span> <span class="log-${level}">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLogs() { document.getElementById("log-box").innerHTML = ""; }
+
+// ── BACKEND HEALTH ───────────────────────────────────────────────────────────
+
+async function checkBackend() {
+  state.backendUrl = document.getElementById("backend-url").value.replace(/\/$/, "");
+  const dot   = document.getElementById("backend-dot");
+  const label = document.getElementById("backend-label");
+  try {
+    const r = await fetch(state.backendUrl + "/health", { signal: AbortSignal.timeout(2000) });
+    if (r.ok) {
+      dot.style.background   = "#3fb950";
+      dot.style.boxShadow    = "0 0 6px #3fb950";
+      label.style.color      = "#3fb950";
+      label.textContent      = "backend online";
+      log("Backend connected: " + state.backendUrl, "success");
+    } else { throw new Error("not ok"); }
+  } catch {
+    dot.style.background   = "#f85149";
+    dot.style.boxShadow    = "none";
+    label.style.color      = "#f85149";
+    label.textContent      = "backend offline";
+  }
+}
+
+// ── GITHUB API ───────────────────────────────────────────────────────────────
+
+async function fetchPRDiff(prNumber) {
+  // Get PR files changed
+  const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNumber}/files`, {
+    headers: { Authorization: `token ${getGHToken()}`, Accept: "application/vnd.github+json" }
+  });
+  if (!r.ok) return null;
+  const files = await r.json();
+  return files; // array of { filename, patch, additions, deletions, status }
+}
+
+async function fetchIssuePR(issueNumber) {
+  // Search PRs mentioning this issue
+  const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/pulls?state=all&per_page=50`, {
+    headers: { Authorization: `token ${getGHToken()}`, Accept: "application/vnd.github+json" }
+  });
+  if (!r.ok) return null;
+  const prs = await r.json();
+  // Find PR that mentions this issue
+  return prs.find(pr =>
+    pr.body && pr.body.includes(`#${issueNumber}`) ||
+    pr.title && pr.title.includes(`#${issueNumber}`)
+  ) || null;
+}
+
+// Parse unified diff patch into hunk structure
+function parsePatch(patch) {
+  if (!patch) return [];
+  const hunks = [];
+  let currentHunk = null;
+  for (const rawLine of patch.split("\n")) {
+    if (rawLine.startsWith("@@")) {
+      if (currentHunk) hunks.push(currentHunk);
+      currentHunk = { header: rawLine, lines: [] };
+    } else if (currentHunk) {
+      const type = rawLine.startsWith("+") ? "add" : rawLine.startsWith("-") ? "rem" : "ctx";
+      currentHunk.lines.push({ type, content: rawLine });
+    }
+  }
+  if (currentHunk) hunks.push(currentHunk);
+  return hunks;
+}
+
+// ── BACKEND CALLS ────────────────────────────────────────────────────────────
+
+async function triggerAll() {
+  log("Triggering all open issues via backend…", "info");
+  try {
+    const r = await fetch(state.backendUrl + "/trigger/all", { method:"POST" });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    log(`Triggered issues: ${d.issues.join(", ")}`, "success");
+    startPolling();
+  } catch (e) {
+    log("Trigger failed: " + e.message, "error");
+    alert("Backend unreachable. Make sure the server is running:\n\npython src/webhook.py");
+  }
+}
+
+async function pollStatus() {
+  try {
+    const r = await fetch(state.backendUrl + "/status", { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return;
+    const data = await r.json();
+    const tasks = data.tasks || {};
+
+    // Update state
+    for (const [k, task] of Object.entries(tasks)) {
+      const prev = state.tasks[k];
+      state.tasks[k] = task;
+
+      // New PR detected → fetch real diff from GitHub
+      if (task.pr_url && (!prev || !prev.pr_url)) {
+        const prMatch = task.pr_url.match(/\/pull\/(\d+)/);
+        if (prMatch) {
+          log(`PR #${prMatch[1]} detected for issue #${task.issue_number} — fetching diff…`, "info");
+          const files = await fetchPRDiff(prMatch[1]);
+          if (files) {
+            state.realDiffs[task.issue_number] = files;
+            log(`Diff loaded for issue #${task.issue_number}: ${files.length} file(s) changed`, "success");
+          }
+        }
+      }
+
+      // Log state changes
+      if (!prev || prev.status !== task.status) {
+        const lvl = task.status==="success"?"success":task.status==="failed"?"error":"info";
+        log(`Issue #${task.issue_number} → ${task.status.toUpperCase()}${task.pr_url?" | PR: "+task.pr_url:""}`, lvl);
+      }
+    }
+
+    updateStats(data.summary || {});
+    renderIssueList();
+    renderDetail();
+  } catch { /* backend may be momentarily unavailable */ }
+}
+
+function startPolling() {
+  if (state.pollInterval) clearInterval(state.pollInterval);
+  state.pollInterval = setInterval(pollStatus, 5000);
+  pollStatus();
+  log("Polling started (every 5s)", "info");
+}
+
+// ── STATS ────────────────────────────────────────────────────────────────────
+
+function updateStats(summary) {
+  document.getElementById("stat-success").textContent = summary.success || 0;
+  document.getElementById("stat-running").textContent = summary.running || 0;
+  document.getElementById("stat-failed").textContent  = summary.failed  || 0;
+}
+
+// ── RENDER HELPERS ───────────────────────────────────────────────────────────
+
+function getTaskStatus(issueNumber) {
+  const t = state.tasks[String(issueNumber)] || state.tasks[issueNumber];
+  return t ? t.status : "pending";
+}
+function getTask(issueNumber) {
+  return state.tasks[String(issueNumber)] || state.tasks[issueNumber] || {};
+}
+
+function statusDotHTML(status) {
+  const pulse = status==="running" ? "animation:pulse 1s infinite;" : "";
+  const glow  = status==="running" ? `box-shadow:0 0 10px ${ST_COLOR[status]};` : "";
+  return `<span class="status-dot-wrap">
+    <span class="status-dot" style="background:${ST_COLOR[status]};${pulse}${glow}"></span>
+    <span class="status-label" style="color:${ST_COLOR[status]}">${ST_LABEL[status]}</span>
+  </span>`;
+}
+
+function pillHTML(label, color) {
+  return `<span class="pill" style="background:${color}22;color:${color};border:1px solid ${color}44">${label}</span>`;
+}
+
+// ── ISSUE LIST ───────────────────────────────────────────────────────────────
+
+function renderIssueList() {
+  const container = document.getElementById("issue-list");
+  container.innerHTML = ISSUES_META.map(issue => {
+    const status = getTaskStatus(issue.number);
+    const tc = TYPE_COLOR[issue.type];
+    const selected = state.selectedIssue === issue.number;
+    return `<div class="issue-card ${selected?"selected":""}"
+      style="border-color:${selected?tc.border:"#21262d"};${selected?`box-shadow:0 0 0 1px ${tc.border}22`:""}"
+      onclick="selectIssue(${issue.number})">
+      <div class="issue-card-top">
+        <span class="issue-num">#${issue.number}</span>
+        <div class="issue-pills">
+          ${pillHTML(issue.type.toUpperCase(), tc.text)}
+          ${pillHTML(issue.severity, SEV_COLOR[issue.severity])}
+        </div>
+      </div>
+      <div class="issue-title">${issue.title}</div>
+      ${statusDotHTML(status)}
+    </div>`;
+  }).join("");
+}
+
+function selectIssue(n) {
+  state.selectedIssue = n;
+  renderIssueList();
+  renderDetail();
+}
+
+// ── DETAIL PANEL ─────────────────────────────────────────────────────────────
+
+function renderDetail() {
+  const issue  = ISSUES_META.find(i => i.number === state.selectedIssue);
+  const task   = getTask(issue.number);
+  const status = task.status || "pending";
+  const tc     = TYPE_COLOR[issue.type];
+
+  document.getElementById("detail-label").textContent = `ISSUE #${issue.number} · DETAIL`;
+
+  // Main detail box
+  document.getElementById("detail").innerHTML = `
+    <div class="detail-title">${issue.title}</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      ${pillHTML(issue.type.toUpperCase(), tc.text)}
+      ${pillHTML(issue.severity, SEV_COLOR[issue.severity])}
+    </div>
+    <div class="detail-desc">${issue.desc}</div>
+    <div class="detail-grid">
+      <div>
+        <div class="detail-field-label">FILE</div>
+        <code class="file">${issue.file}</code>
+      </div>
+      <div>
+        <div class="detail-field-label">DEVIN SESSION</div>
+        <code class="session">${task.session_id || "—"}</code>
+      </div>
+    </div>
+    <div class="detail-footer">
+      ${statusDotHTML(status)}
+      ${task.session_url ? `<a href="${task.session_url}" target="_blank" style="font-size:11px;color:#8b5cf6;text-decoration:none">🤖 Watch Devin</a>` : ""}
+      ${task.pr_url ? `<a href="${task.pr_url}" target="_blank" style="font-size:11px;color:#58a6ff;text-decoration:none">🔗 View PR</a>` : ""}
+    </div>
+  `;
+
+  // Diff section
+  renderDiff(issue, task, status);
+
+  // Prompt
+  document.getElementById("prompt-box").textContent =
+`Repo: https://github.com/${GITHUB_REPO}
+
+Issue #${issue.number}: ${issue.title}
+
+${issue.desc}
+
+Tasks:
+1. Implement the remediation described above
+2. Open a PR: "fix: closes #${issue.number}"
+3. PR must reference: "Closes #${issue.number}"`;
+}
+
+function renderDiff(issue, task, status) {
+  const section  = document.getElementById("diff-section");
+  const showDiff = !!state.showDiff[issue.number];
+  const realDiff = state.realDiffs[issue.number];
+  const hasReal  = !!realDiff;
+
+  const headerLabel = status === "success"
+    ? (hasReal ? "✅ REAL CHANGES APPLIED BY DEVIN" : "✅ CHANGES APPLIED BY DEVIN (fetching diff…)")
+    : "EXPECTED CHANGES";
+
+  let diffHTML = "";
+  if (showDiff) {
+    if (hasReal) {
+      // Real diff from GitHub
+      diffHTML = realDiff.map(f => {
+        const hunks = parsePatch(f.patch || "");
+        return `<div style="border-radius:6px;overflow:hidden;border:1px solid #21262d;font-family:monospace;font-size:12px;margin-bottom:8px">
+          <div class="diff-file-header">
+            <span class="diff-file-name">📄 ${f.filename}</span>
+            <span class="diff-stats"><span style="color:#3fb950">+${f.additions}</span> <span style="color:#f85149">−${f.deletions}</span></span>
+          </div>
+          ${hunks.map(hunk => `
+            <div class="diff-hunk-header">${hunk.header}</div>
+            ${hunk.lines.map(line => {
+              const bg    = line.type==="add"?"#0d2818":line.type==="rem"?"#2d1515":"transparent";
+              const color = line.type==="add"?"#3fb950":line.type==="rem"?"#f85149":"#8b949e";
+              const sign  = line.type==="add"?"+":line.type==="rem"?"−":" ";
+              return `<div class="diff-line" style="background:${bg}">
+                <span class="diff-sign" style="color:${color}">${sign}</span>
+                <span style="color:${line.type==="ctx"?"#8b949e":color}">${escHtml(line.content.slice(1))}</span>
+              </div>`;
+            }).join("")}
+          `).join("")}
+        </div>`;
+      }).join("");
+    } else if (status === "running") {
+      diffHTML = `<div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:6px;font-size:12px;color:#d29922">
+        <span class="spinner"></span>Devin is working… diff will appear when PR is opened.
+      </div>`;
+    } else {
+      diffHTML = `<div class="diff-placeholder">No diff available yet.</div>`;
+    }
+
+    if (status === "success" && task.pr_url) {
+      diffHTML += `<div class="diff-success-msg">
+        Devin committed these changes and opened <a href="${task.pr_url}" target="_blank" style="color:#58a6ff">PR</a>.
+        Issue #${issue.number} automatically closed.
+      </div>`;
+    }
+  }
+
+  section.innerHTML = `
+    <div class="diff-header-row">
+      <div class="section-label" style="margin:0">${headerLabel}</div>
+      <button class="diff-toggle" onclick="toggleDiff(${issue.number})">${showDiff?"hide diff":"show diff"}</button>
+    </div>
+    ${showDiff
+      ? `<div class="diff-container">${diffHTML}</div>`
+      : `<div class="diff-placeholder" onclick="toggleDiff(${issue.number})">Click "show diff" to see the changes Devin applied →</div>`
+    }
+  `;
+}
+
+function toggleDiff(n) {
+  state.showDiff[n] = !state.showDiff[n];
+  const issue  = ISSUES_META.find(i => i.number === n);
+  const task   = getTask(n);
+  const status = task.status || "pending";
+  renderDiff(issue, task, status);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ── CODE PANEL ───────────────────────────────────────────────────────────────
+
+const CODE_SECTIONS = [
+  {
+    label:"1 · Event Trigger", file:"src/webhook.py",
+    desc:"Flask server listens for GitHub issue webhooks. As soon as an issue is opened or labeled, it fires a Devin session asynchronously — the webhook responds in <100ms.",
+    code:`@app.route("/webhook", methods=["POST"])
+def github_webhook():
+    event = request.headers.get("X-GitHub-Event")
+    data  = request.get_json()
+
+    if event == "issues":
+        action = data["action"]       # "opened" | "labeled"
+        issue  = data["issue"]
+        labels = [l["name"] for l in
+                  issue.get("labels", [])]
+
+        should_trigger = (
+            action in ("opened", "labeled") and
+            any(l in AUTO_LABELS for l in labels)
+        )
+        if should_trigger:
+            # Async — webhook returns immediately
+            t = threading.Thread(
+                target=remediate_issue,
+                args=(issue,), daemon=True
+            )
+            t.start()
+            return {"status": "triggered",
+                    "issue": issue["number"]}, 202`,
+  },
+  {
+    label:"2 · Devin Session", file:"src/orchestrator.py",
+    desc:"For each issue, a Devin v3 API session is created with a precise prompt containing the full issue context. Devin autonomously reads the codebase and implements the fix.",
+    code:`def create_session(issue: dict) -> dict:
+    n, title, body = (
+        issue["number"],
+        issue["title"],
+        issue.get("body", "")
+    )
+    prompt = f"""
+    Repo: https://github.com/{GITHUB_REPO}
+    Issue #{n}: {title}
+
+    {body}
+
+    Tasks:
+    1. Implement the remediation above
+    2. Open a PR titled:
+       "fix: {title} (closes #{n})"
+    3. PR description must include:
+       "Closes #{n}"
+    """
+    resp = _devin("POST", "/sessions", {
+        "prompt": prompt,
+        "idempotent_id":
+            f"superset-{n}-{time.time()}",
+    })
+    return resp   # { session_id, url, status }`,
+  },
+  {
+    label:"3 · Polling & PR", file:"src/orchestrator.py",
+    desc:"The orchestrator polls the Devin session every 20s until a terminal state. On success, it extracts the PR URL, comments on the issue, and closes it automatically.",
+    code:`def poll_session(session_id, timeout_min=45):
+    deadline = time.time() + timeout_min * 60
+
+    while time.time() < deadline:
+        data   = get_session(session_id)
+        status = data.get("status")
+
+        # Terminal states
+        if status in ("finished", "failed",
+                      "stopped", "blocked"):
+            return data
+
+        time.sleep(20)   # poll every 20s
+
+# After poll — extract PR and close issue
+pr_url = extract_pr(session_data)
+if pr_url:
+    comment(n, f"PR opened: {pr_url}")
+    close_issue(n)`,
+  },
+  {
+    label:"4 · Observability", file:"src/reporter.py",
+    desc:"Every task is tracked in real-time to a JSON file. The /status endpoint exposes live metrics for this dashboard to consume.",
+    code:`@app.route("/status")
+def status():
+    return {
+        "summary": {
+            "total":   len(_results),
+            "success": sum(
+                r.status == "success"
+                for r in _results.values()
+            ),
+            "failed": sum(
+                r.status == "failed"
+                for r in _results.values()
+            ),
+            "running": sum(
+                r.status == "running"
+                for r in _results.values()
+            ),
+        },
+        "tasks": {
+            k: asdict(v)
+            for k, v in _results.items()
+        }
+    }
+
+def _save():
+    with open(METRICS_PATH, "w") as f:
+        json.dump(_results, f, indent=2)`,
+  },
+];
+
+function renderCodePanel() {
+  const nav = document.getElementById("code-nav");
+  nav.innerHTML = CODE_SECTIONS.map((s,i) =>
+    `<button class="code-nav-btn ${state.selectedCode===i?"active":""}" onclick="selectCode(${i})">${s.label}</button>`
+  ).join("");
+
+  const s = CODE_SECTIONS[state.selectedCode];
+  const lines = s.code.split("\n").map((line, i) => {
+    const isComment = line.trim().startsWith("#");
+    const isKeyword = /^\s*(def |return |import |from |if |for |while |class |async )/.test(line);
+    const color = isComment ? "#8b949e" : isKeyword ? "#79c0ff" : "#e6edf3";
+    return `<div class="code-line"><span class="code-linenum">${i+1}</span><span style="color:${color}">${escHtml(line)}</span></div>`;
+  }).join("");
+
+  document.getElementById("code-content").innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700">${s.label}</div>
+      <code style="font-size:10px;color:#8b5cf6;background:#1a1033;padding:3px 8px;border-radius:4px">${s.file}</code>
+    </div>
+    <div class="code-desc">💬 ${s.desc}</div>
+    <pre class="code-block">${lines}</pre>
+  `;
+}
+
+function selectCode(i) {
+  state.selectedCode = i;
+  renderCodePanel();
+}
+
+// ── ARCHITECTURE PANEL ───────────────────────────────────────────────────────
+
+function renderArchPanel() {
+  const cards = [
+    {icon:"🔔",title:"Event Trigger",   desc:"GitHub webhook → Flask server → async thread. Responds in <100ms. Fires on issue open or label applied."},
+    {icon:"🤖",title:"Devin Session",   desc:"Structured prompt with full issue context. Devin reads the codebase, implements the fix, opens a PR autonomously."},
+    {icon:"📊",title:"Observability",   desc:"Real-time JSON metrics. /status endpoint polled by this dashboard every 5s. Diff fetched from GitHub API on PR open."},
+    {icon:"🐳",title:"Docker Ready",    desc:"docker compose up — full environment in one command. Batch mode available for mass processing."},
+  ];
+  document.getElementById("arch-cards").innerHTML = cards.map(c => `
+    <div class="arch-card">
+      <div class="arch-card-icon">${c.icon}</div>
+      <div class="arch-card-title">${c.title}</div>
+      <div class="arch-card-desc">${c.desc}</div>
+    </div>
+  `).join("");
+
+  // SVG arch diagram
+  const nodes = [
+    { x:20,  y:105, w:90, h:44, color:"#238636", label:["GitHub","Issue"] },
+    { x:160, y:105, w:90, h:44, color:"#1f6feb", label:["Webhook","Server"] },
+    { x:300, y:105, w:90, h:44, color:"#8b5cf6", label:["Devin","API v3"] },
+    { x:440, y:35,  w:90, h:44, color:"#238636", label:["Pull","Request"] },
+    { x:440, y:175, w:90, h:44, color:"#d29922", label:["Observa-","bility"] },
+  ];
+  const edges = [
+    { x1:110,y1:127,x2:160,y2:127, label:"webhook" },
+    { x1:250,y1:127,x2:300,y2:127, label:"create session" },
+    { x1:390,y1:115,x2:440,y2:70,  label:"opens PR" },
+    { x1:390,y1:139,x2:440,y2:192, label:"metrics" },
+  ];
+  const svg = document.getElementById("arch-svg");
+  svg.innerHTML = `
+    <defs>
+      <marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="#484f58"/>
+      </marker>
+    </defs>
+    ${edges.map(e => `
+      <line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="${(e.x1+e.x2)/2}" y="${e.y1<=e.y2?e.y1-6:e.y1+14}" fill="#484f58" font-size="9" text-anchor="middle">${e.label}</text>
+    `).join("")}
+    ${nodes.map(n => `
+      <rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="6" fill="${n.color}22" stroke="${n.color}" stroke-width="1.5"/>
+      <text x="${n.x+n.w/2}" y="${n.y+14}" fill="${n.color}" font-size="10" text-anchor="middle" font-weight="700">
+        ${n.label.map((l,i) => `<tspan x="${n.x+n.w/2}" dy="${i===0?0:13}">${l}</tspan>`).join("")}
+      </text>
+    `).join("")}
+  `;
+}
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("panel-" + name).classList.add("active");
+  btn.classList.add("active");
+  if (name === "code") renderCodePanel();
+  if (name === "architecture") renderArchPanel();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+function init() {
+  renderIssueList();
+  renderDetail();
+  renderArchPanel();
+  checkBackend();
+  // Auto-poll if backend is available
+  startPolling();
+}
+
+init();
+</script>
+</body>
+</html>
